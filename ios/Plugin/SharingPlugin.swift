@@ -28,6 +28,42 @@ public class SharingPlugin: CAPPlugin {
         call.resolve()
     }
 
+    @objc func shareToFacebookStories(_ call: CAPPluginCall) {
+        guard let facebookAppId = call.getString("facebookAppId") else {
+            call.reject("Must provide a facebookAppId")
+            return
+        }
+        var backgroundImage: UIImage? = nil
+        if let backgroundImageBase64 = call.getString("backgroundImageBase64") {
+            backgroundImage = UIImage(data: base64StringToData( backgroundImageBase64)!)
+        }
+        let backgroundTopColor = call.getString("backgroundTopColor")
+        let backgroundBottomColor = call.getString("backgroundBottomColor")
+
+        var stickerImage: UIImage? = nil
+        if let stickerImageBase64 = call.getString("stickerImageBase64") {
+            stickerImage = UIImage(data:base64StringToData(stickerImageBase64)!)
+        }
+        DispatchQueue.main.async {
+            self.implementation.shareToFacebookStories(facebookAppId, backgroundImage: backgroundImage, backgroundTopColor: backgroundTopColor, backgroundBottomColor: backgroundBottomColor, stickerImage: stickerImage)
+            call.resolve()
+
+        }
+    }
+
+    @objc func canShareToFacebookStories(_ call: CAPPluginCall) {
+        guard let facebookAppId = call.getString("facebookAppId") else {
+            call.reject("Must provide a facebookAppId")
+            return
+        }
+        DispatchQueue.main.async {
+            let value = self.implementation.canShareToFacebookStories(facebookAppId)
+            call.resolve([
+                "value": value
+            ])
+        }
+    }
+
     @objc func shareToInstagramStories(_ call: CAPPluginCall) {
         guard let facebookAppId = call.getString("facebookAppId") else {
             call.reject("Must provide a facebookAppId")
@@ -47,7 +83,7 @@ public class SharingPlugin: CAPPlugin {
         DispatchQueue.main.async {
             self.implementation.shareToInstagramStories(facebookAppId, backgroundImage: backgroundImage, backgroundTopColor: backgroundTopColor, backgroundBottomColor: backgroundBottomColor, stickerImage: stickerImage)
             call.resolve()
-            
+
         }
     }
 
@@ -63,7 +99,7 @@ public class SharingPlugin: CAPPlugin {
             ])
         }
     }
-    
+
     @objc private func base64StringToData(_ str: String) -> Data? {
         if str.contains("data:image") {
             guard let url = URL(string: str) else { return nil }

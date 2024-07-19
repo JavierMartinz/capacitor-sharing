@@ -2,7 +2,7 @@ import { WebPlugin } from '@capacitor/core';
 
 import type {
   ShareOptions,
-  ShareToInstagramStoriesOptions,
+  ShareToStoriesOptions,
   SharingPlugin,
 } from './definitions';
 
@@ -21,10 +21,20 @@ export class SharingWeb extends WebPlugin implements SharingPlugin {
     }
   }
 
+  async shareToFacebookStories(
+      _: ShareToStoriesOptions,
+  ): Promise<void> {
+    console.warn('shareToFacebookStories is not implemented on web');
+  }
+
   async shareToInstagramStories(
-    _: ShareToInstagramStoriesOptions,
+    _: ShareToStoriesOptions,
   ): Promise<void> {
     console.warn('shareToInstagramStories is not implemented on web');
+  }
+
+  async canShareToFacebookStories(): Promise<{ value: boolean }> {
+    return { value: false };
   }
 
   async canShareToInstagramStories(): Promise<{ value: boolean }> {

@@ -1,6 +1,6 @@
 {
   "name": "@rediska1114/capacitor-sharing",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Sharing plugin for capacitor",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",

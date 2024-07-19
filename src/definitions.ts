@@ -1,7 +1,9 @@
 export interface SharingPlugin {
   share(options: ShareOptions): Promise<void>;
-  shareToInstagramStories(options: ShareToInstagramStoriesOptions): Promise<void>;
-  canShareToInstagramStories(options: CanShareToInstagramStoriesOptions): Promise<{ value: boolean }>;
+  shareToFacebookStories(options: ShareToStoriesOptions): Promise<void>;
+  shareToInstagramStories(options: ShareToStoriesOptions): Promise<void>;
+  canShareToFacebookStories(options: CanShareToStoriesOptions): Promise<{ value: boolean }>;
+  canShareToInstagramStories(options: CanShareToStoriesOptions): Promise<{ value: boolean }>;
 }
 
 export interface ShareOptions {
@@ -11,7 +13,7 @@ export interface ShareOptions {
   imageBase64?: string;
 }
 
-export interface ShareToInstagramStoriesOptions {
+export interface ShareToStoriesOptions {
   facebookAppId: string;
   backgroundTopColor?: string;
   backgroundBottomColor?: string;
@@ -19,6 +21,6 @@ export interface ShareToInstagramStoriesOptions {
   backgroundImageBase64?: string;
 }
 
-export interface CanShareToInstagramStoriesOptions {
+export interface CanShareToStoriesOptions {
   facebookAppId: string;
 }

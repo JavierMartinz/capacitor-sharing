@@ -11,9 +11,11 @@ npx cap sync
 
 # Available methods:
 
-- share(options: ShareOptions): Promise<void>;
-- shareToInstagramStories(options: ShareToInstagramStoriesOptions): Promise<void>;
+- canShareToFacebookStories(): Promise<boolean>;
 - canShareToInstagramStories(): Promise<boolean>;
+- share(options: ShareOptions): Promise<void>;
+- shareToFacebookStories(options: ShareToStoriesOptions): Promise<void>;
+- shareToInstagramStories(options: ShareToStoriesOptions): Promise<void>;
 
 # Usage example:
 
@@ -43,6 +45,26 @@ import { Sharing } from '@rediska1114/capacitor-sharing';
 @Injectable()
 export class AnalyticsService {
   constructor(private sharing: Sharing) {}
+
+    async shareToFacebookStories() {
+      const canShare = await this.sharing.canShareToFacebookStories();
+      if (canShare) {
+        const stickerImageBase64 = await this.getBase64FromUrl(
+            'https://www.example.com/sticker.png',
+        );
+        const backgroundImageBase64 = await this.getBase64FromUrl(
+            'https://www.example.com/background.png',
+        );
+
+        this.sharing.shareToFacebookStories({
+            facebookAppId: '123456789',
+            backgroundTopColor: '#ff0000',
+            backgroundBottomColor: '#00ff00',
+            stickerImageBase64,
+            backgroundImageBase64,
+        });
+      }
+    }
 
   async shareToInstagramStories() {
     const canShare = await this.sharing.canShareToInstagramStories();
