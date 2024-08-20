@@ -11,9 +11,9 @@ npx cap sync
 
 # Available methods:
 
-- share(options: ShareOptions): Promise<void>;
-- shareToInstagramStories(options: ShareToInstagramStoriesOptions): Promise<void>;
-- canShareToInstagramStories(): Promise<boolean>;
+- share(options: ShareOptions): Promise<NativeShareResult>;
+- shareTo(options: ShareToOptions): Promise<boolean>;
+- canShareTo(options: CanShareToOptions): Promise<boolean>;
 
 # Usage example:
 
@@ -41,21 +41,27 @@ import { Injectable } from '@angular/core';
 import { Sharing } from '@rediska1114/capacitor-sharing';
 
 @Injectable()
-export class AnalyticsService {
+export class SharingService {
   constructor(private sharing: Sharing) {}
+  private facebookAppId = '123456789'; // your facebook app id
 
   async shareToInstagramStories() {
-    const canShare = await this.sharing.canShareToInstagramStories();
-    if (canShare) {
+    const targets = await this.getAvailableSharingTargets();
+
+    // instagram stories for example
+    if (targets.instagramStories) {
+      // example image in base64 format
       const stickerImageBase64 = await this.getBase64FromUrl(
         'https://www.example.com/sticker.png',
       );
+      // example image in base64 format
       const backgroundImageBase64 = await this.getBase64FromUrl(
         'https://www.example.com/background.png',
       );
 
-      this.sharing.shareToInstagramStories({
-        facebookAppId: '123456789',
+      this.sharing.shareTo({
+        shareTo: 'instagramStories',
+        facebookAppId: this.facebookAppId,
         backgroundTopColor: '#ff0000',
         backgroundBottomColor: '#00ff00',
         stickerImageBase64,
@@ -64,7 +70,28 @@ export class AnalyticsService {
     }
   }
 
-  async share() {
+  async getAvailableSharingTargets() {
+    // check of all available sharing targets
+    const [native, facebookStories, instagramStories] = await Promise.all([
+      this.sharing.canShareTo({ shareTo: 'native' }),
+      this.sharing.canShareTo({
+        shareTo: 'facebookStories',
+        facebookAppId: this.facebookAppId,
+      }),
+      this.sharing.canShareTo({
+        shareTo: 'instagramStories',
+        facebookAppId: this.facebookAppId,
+      }),
+    ]);
+
+    return {
+      native,
+      facebookStories,
+      instagramStories,
+    };
+  }
+
+  async nativeShare() {
     this.sharing.share({
       title: 'Title',
       text: 'Text',
@@ -86,6 +113,12 @@ export class AnalyticsService {
 }
 ```
 
-```
+# Changes in 1.x.x
 
-```
+- added android support
+- added support for sharing to Facebook Stories
+- added `shareTo()` method instead of deprecated `shareToInstagramStories()`
+- added `canShareTo()` method instead of deprecated `canShareToInstagramStories()`
+- share() now returns status and target of the sharing action
+- updated to capacitor 5
+- ios deployment_target set to 13.0 for compatibility with capacitor 5 (BREAKING CHANGE)
