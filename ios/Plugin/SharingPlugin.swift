@@ -101,6 +101,8 @@ public class SharingPlugin: CAPPlugin {
       return MetaHandler(platform: "instagram", placement: "stories")
     case "facebookStories":
       return MetaHandler(platform: "facebook", placement: "stories")
+    case "facebookPost":
+      return FacebookPostHandler()
     case "native":
       return NativeHandler()
     default:
@@ -211,6 +213,94 @@ class MetaHandler: ShareTargetHandler {
 
   @objc private func getShareUrl(_ facebookAppId: String) -> URL {
     return URL(string: "\(platform)-\(placement)://share?source_application=\(facebookAppId)")!
+  }
+}
+
+class FacebookPostHandler: ShareTargetHandler {
+  override func checkAvailability(completion: @escaping (Bool, String?) -> Void) {
+    DispatchQueue.main.async {
+      guard let facebookAppId = self.call?.getString("facebookAppId") else {
+        completion(false, "Must provide a facebookAppId")
+        return
+      }
+      
+      // Check if Facebook app is installed and can handle the share
+      let urlString = "fb://profile?app_id=\(facebookAppId)"
+      let canOpen = UIApplication.shared.canOpenURL(URL(string: urlString)!)
+      
+      completion(canOpen, nil)
+    }
+  }
+  
+  override func share(completion: @escaping (Bool, String?) -> Void) {
+    DispatchQueue.main.async {
+      guard let facebookAppId = self.call?.getString("facebookAppId") else {
+        completion(false, "Must provide a facebookAppId")
+        return
+      }
+      
+      guard let call = self.call else {
+        completion(false, "Invalid call")
+        return
+      }
+      
+      // Get content to share
+      var image: UIImage? = nil
+      if let imageBase64 = call.getString("imageBase64") {
+        image = UIImage(data: base64StringToData(imageBase64)!)
+      }
+      
+      let text = call.getString("text") ?? ""
+      var urlString = call.getString("url") ?? ""
+      
+      // Handle Facebook feed sharing
+      // We'll use the Facebook Feed Dialog approach
+      
+      // First, prepare the content for Facebook
+      var parameters = ["app_id": facebookAppId]
+      
+      if !text.isEmpty {
+        parameters["quote"] = text
+      }
+      
+      if !urlString.isEmpty {
+        parameters["href"] = urlString
+      }
+      
+      // If we have an image, we need to save it to pasteboard
+      if let imageData = image?.pngData() {
+        let pasteboardItems: [String: Any] = [
+          "com.facebook.sharedSticker.backgroundImage": imageData,
+          "com.facebook.sharedSticker.appID": facebookAppId
+        ]
+        
+        let pasteboardOptions: [UIPasteboard.OptionsKey: Any] = [
+          .expirationDate: Date().addingTimeInterval(60 * 5)
+        ]
+        UIPasteboard.general.setItems([pasteboardItems], options: pasteboardOptions)
+      }
+      
+      // Construct the URL with parameters
+      var components = URLComponents(string: "https://www.facebook.com/dialog/share")!
+      components.queryItems = parameters.map { URLQueryItem(name: $0.key, value: $0.value) }
+      
+      // Try to open Facebook app first
+      let fbAppUrl = URL(string: "fb://feed")!
+      if UIApplication.shared.canOpenURL(fbAppUrl) {
+        UIApplication.shared.open(fbAppUrl, options: [:]) { success in
+          completion(success, nil)
+        }
+      } else {
+        // Fallback to web dialog
+        if let url = components.url {
+          UIApplication.shared.open(url, options: [:]) { success in
+            completion(success, nil)
+          }
+        } else {
+          completion(false, "Failed to construct share URL")
+        }
+      }
+    }
   }
 }
 
