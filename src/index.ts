@@ -31,6 +31,24 @@ export class Sharing {
   }
 
   /**
+   * Check if the app has permission to save photos to the photo library
+   * iOS only - On other platforms, this will always return false
+   * @returns Promise<boolean> True if permission is granted, false otherwise
+   */
+  canSaveToPhotoLibrary() {
+    return this.plugin.canSaveToPhotoLibrary().then(({ value }) => value);
+  }
+
+  /**
+   * Request permission to save photos to the photo library
+   * iOS only - On other platforms, this will always return false
+   * @returns Promise<boolean> True if permission was granted, false otherwise
+   */
+  requestPhotoLibraryPermissions() {
+    return this.plugin.requestPhotoLibraryPermissions().then(({ value }) => value);
+  }
+
+  /**
    * @deprecated Use shareTo instead
    */
   shareToInstagramStories(options: ShareToInstagramStoriesOptions) {

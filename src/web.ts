@@ -1,16 +1,37 @@
 import { WebPlugin } from '@capacitor/core';
 
 import type {
+  CanShareToInstagramStoriesOptions,
   CanShareToOptions,
+  NativeShareResult,
   ShareOptions,
+  ShareResult,
   ShareToInstagramStoriesOptions,
   ShareToOptions,
   SharingPlugin,
 } from './definitions';
 
 export class SharingWeb extends WebPlugin implements SharingPlugin {
+  /**
+   * Check if the app has permission to save photos to the photo library (iOS only)
+   * On web, this will always return false as web doesn't have access to photo library
+   */
+  async canSaveToPhotoLibrary(): Promise<ShareResult> {
+    console.warn('Photo library permissions are not available on web');
+    return { value: false };
+  }
+  
+  /**
+   * Request permission to save photos to the photo library (iOS only)
+   * On web, this will always return false as web doesn't have access to photo library
+   */
+  async requestPhotoLibraryPermissions(): Promise<ShareResult> {
+    console.warn('Photo library permissions cannot be requested on web');
+    return { value: false };
+  }
+  
   // share via navigator API
-  async share(options: ShareOptions) {
+  async share(options: ShareOptions): Promise<NativeShareResult> {
     const { title, text, url } = options;
     if (navigator.share) {
       return navigator
@@ -26,49 +47,67 @@ export class SharingWeb extends WebPlugin implements SharingPlugin {
     }
   }
 
-  async shareTo(options: ShareToOptions) {
+  async shareTo(options: ShareToOptions): Promise<ShareResult> {
     const shareTo = (options as any).shareTo;
 
-    // For Instagram Feed, we can at least open Instagram website
+    // For Instagram Feed on web, we can only open Instagram website
     if (shareTo === 'instagramFeed') {
       try {
-        window.open('https://www.instagram.com/create/story', '_blank');
+        // This is the best we can do on web - redirect to Instagram
+        window.open('https://www.instagram.com/', '_blank');
         return { value: true };
       } catch (e) {
-        console.warn('Failed to open Instagram website');
+        console.error('Error sharing to Instagram Feed', e);
+        return { value: false };
       }
+    } else if (shareTo === 'instagramStories' || shareTo === 'facebookStories') {
+      console.warn(`Sharing to ${shareTo} is not supported on web`);
+      return { value: false };
+    } else if (shareTo === 'native') {
+      // Use the native share if available
+      try {
+        await this.share(options);
+        return { value: true };
+      } catch {
+        return { value: false };
+      }
+    } else {
+      console.warn(`Sharing to ${shareTo || 'unknown target'} is not supported`);
+      return { value: false };
     }
-
-    console.warn(`${shareTo || 'shareTo'} is not fully supported on web`);
-    return { value: false };
   }
 
-  async canShareTo(options: CanShareToOptions) {
-    if (options.shareTo === 'native') {
+  async canShareTo(options: CanShareToOptions): Promise<ShareResult> {
+    const { shareTo } = options;
+    
+    if (shareTo === 'native') {
       return { value: !!navigator && !!navigator.share };
+    } else if (shareTo === 'instagramFeed') {
+      // On web, we can always try to open Instagram in a new tab
+      return { value: true };
+    } else {
+      // Stories sharing not supported on web
+      return { value: false };
     }
-
-    // For Instagram Feed, we'll return true if we can open windows
-    if (options.shareTo === 'instagramFeed') {
-      return { value: true }; // We can always try to open the Instagram website
-    }
-
-    return { value: false };
   }
 
   /**
    * @deprecated Use shareTo instead
    */
-  async shareToInstagramStories(
-      _: ShareToInstagramStoriesOptions,
-  ): Promise<void> {
-    console.warn('shareToInstagramStories is not implemented on web');
+  async shareToInstagramStories(options: ShareToInstagramStoriesOptions): Promise<void> {
+    await this.shareTo({
+      shareTo: 'instagramStories',
+      ...options,
+    });
   }
 
   /**
    * @deprecated Use canShareTo instead
    */
-  async canShareToInstagramStories(): Promise<{ value: boolean }> {
-    return { value: false };
+  async canShareToInstagramStories(options: CanShareToInstagramStoriesOptions): Promise<ShareResult> {
+    return this.canShareTo({
+      shareTo: 'instagramStories',
+      ...options,
+    });
   }
 }

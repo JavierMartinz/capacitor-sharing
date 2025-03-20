@@ -11,7 +11,9 @@ public class SharingPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "shareTo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "canShareTo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shareToInstagramStories", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "canShareToInstagramStories", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "canShareToInstagramStories", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "canSaveToPhotoLibrary", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestPhotoLibraryPermissions", returnType: CAPPluginReturnPromise)
     ]
     
     private let implementation = Sharing()
@@ -34,5 +36,13 @@ public class SharingPlugin: CAPPlugin, CAPBridgedPlugin {
     
     @objc func canShareToInstagramStories(_ call: CAPPluginCall) {
         implementation.canShareToInstagramStories(call, plugin: self)
+    }
+    
+    @objc func canSaveToPhotoLibrary(_ call: CAPPluginCall) {
+        implementation.canSaveToPhotoLibrary(call, plugin: self)
+    }
+    
+    @objc func requestPhotoLibraryPermissions(_ call: CAPPluginCall) {
+        implementation.requestPhotoLibraryPermissions(call, plugin: self)
     }
 }

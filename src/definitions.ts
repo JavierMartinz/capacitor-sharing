@@ -2,6 +2,18 @@ export interface SharingPlugin {
     share(options: NativeShareOptions): Promise<NativeShareResult>;
     canShareTo(options: CanShareToOptions): Promise<ShareResult>;
     shareTo(options: ShareToOptions): Promise<ShareResult>;
+    
+    /**
+     * Check if the app has permission to save photos to the photo library
+     * iOS only
+     */
+    canSaveToPhotoLibrary(): Promise<ShareResult>;
+    
+    /**
+     * Request permission to save photos to the photo library
+     * iOS only
+     */
+    requestPhotoLibraryPermissions(): Promise<ShareResult>;
 
     /**
      * @deprecated Use shareTo instead
@@ -40,9 +52,16 @@ export type ShareToOptions =
     shareTo: 'instagramFeed';
     facebookAppId: string;
 
-        backgroundImageBase64?: string;
+    backgroundImageBase64?: string;
 }
-    | {};
+    | {
+    shareTo: 'native';
+    
+    title?: string;
+    text?: string;
+    url?: string;
+    backgroundImageBase64?: string;
+};
 
 export type NativeShareResult = {
     status: 'success' | 'cancelled';
