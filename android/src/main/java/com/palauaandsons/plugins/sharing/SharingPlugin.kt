@@ -1,5 +1,6 @@
 package com.palauaandsons.plugins.sharing
 
+import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -7,6 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -16,15 +18,34 @@ import android.util.Log
 import androidx.activity.result.ActivityResult
 import androidx.core.content.FileProvider
 import com.getcapacitor.JSObject
+import com.getcapacitor.PermissionHelper
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.ActivityCallback
 import com.getcapacitor.annotation.CapacitorPlugin
+import com.getcapacitor.annotation.Permission
+import com.getcapacitor.annotation.PermissionCallback
 import java.io.File
 import java.io.FileOutputStream
 
-@CapacitorPlugin(name = "Sharing")
+@CapacitorPlugin(
+  name = "Sharing",
+  permissions = [
+    Permission(
+      strings = [
+        Manifest.permission.WRITE_EXTERNAL_STORAGE
+      ],
+      maxSdkVersion = 32
+    ),
+    Permission(
+      strings = [
+        Manifest.permission.READ_MEDIA_IMAGES
+      ],
+      minSdkVersion = 33
+    )
+  ]
+)
 class SharingPlugin : Plugin() {
   private var stopped = false
   private var isPresenting = false
@@ -172,6 +193,68 @@ class SharingPlugin : Plugin() {
     }
   }
 
+  @PluginMethod
+  fun canSaveToPhotoLibrary(call: PluginCall) {
+    // On Android, we need to check storage permissions
+    val result = JSObject()
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      // Android 13+: READ_MEDIA_IMAGES permission
+      val hasPermission = PermissionHelper.hasPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+      result.put("value", hasPermission)
+    } else {
+      // Android 12 and lower: WRITE_EXTERNAL_STORAGE permission
+      val hasPermission = PermissionHelper.hasPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+      result.put("value", hasPermission)
+    }
+
+    call.resolve(result)
+  }
+
+  @PluginMethod
+  fun requestPhotoLibraryPermissions(call: PluginCall) {
+    // Save the call for later
+    saveCall(call)
+
+    // Determine which permission to request based on Android version
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      // Android 13+: READ_MEDIA_IMAGES permission
+      requestPermissionForAlias("storage", call, "photoLibraryPermissionsCallback")
+    } else {
+      // Android 12 and lower: WRITE_EXTERNAL_STORAGE permission
+      requestPermissionForAlias("storage", call, "photoLibraryPermissionsCallback")
+    }
+  }
+
+  @PermissionCallback
+  private fun photoLibraryPermissionsCallback(call: PluginCall) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      val hasPermission = PermissionHelper.hasPermission(this, Manifest.permission.READ_MEDIA_IMAGES)
+      val result = JSObject()
+      result.put("value", hasPermission)
+      call.resolve(result)
+    } else {
+      val hasPermission = PermissionHelper.hasPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+      val result = JSObject()
+      result.put("value", hasPermission)
+      call.resolve(result)
+    }
+  }
+
+  @PluginMethod
+  fun shareToInstagramStories(call: PluginCall) {
+    // For backward compatibility, modify the call to use shareTo instead
+    call.data.put("shareTo", "instagramStories")
+    shareTo(call)
+  }
+
+  @PluginMethod
+  fun canShareToInstagramStories(call: PluginCall) {
+    // For backward compatibility, modify the call to use canShareTo instead
+    call.data.put("shareTo", "instagramStories")
+    canShareTo(call)
+  }
+
   override fun handleOnDestroy() {
     context.unregisterReceiver(shareReceiver)
     super.handleOnDestroy()
@@ -258,13 +341,7 @@ class MetaHandler(
   override var activity: Activity? = null
 
   override fun checkAvailability(completion: (Boolean, String?) -> Unit?): Unit? {
-    //    val facebookAppId =
-    //        call?.getString("facebookAppId") ?: return completion(false, "Must provide a
-    // facebookAppId")
     val intent = Intent(getActionName()).apply { type = "image/*" }
-
-    // This is your application's FB ID
-    // intent.putExtra("source_application", facebookAppId)
 
     // Verify that the activity resolves the intent and start it
     val packageManager = activity!!.packageManager
