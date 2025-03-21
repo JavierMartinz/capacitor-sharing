@@ -12,6 +12,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.util.Base64
+import android.util.Log
 import androidx.activity.result.ActivityResult
 import androidx.core.content.FileProvider
 import com.getcapacitor.JSObject
@@ -35,20 +36,20 @@ class SharingPlugin : Plugin() {
     super.load()
 
     shareReceiver =
-        object : BroadcastReceiver() {
-          override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent == null) {
-              return
-            }
-            chosenComponent = getChosenComponent(intent)
+      object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+          if (intent == null) {
+            return
           }
+          chosenComponent = getChosenComponent(intent)
         }
+      }
 
     val shareResultAction = getShareResultAction(context)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       context.registerReceiver(
-          shareReceiver, IntentFilter(shareResultAction), Context.RECEIVER_NOT_EXPORTED)
+        shareReceiver, IntentFilter(shareResultAction), Context.RECEIVER_NOT_EXPORTED)
     } else {
       context.registerReceiver(shareReceiver, IntentFilter(shareResultAction))
     }
@@ -96,7 +97,7 @@ class SharingPlugin : Plugin() {
 
       if (!backgroundImageBase64.isNullOrEmpty()) {
         val bitmap =
-            imageHelper.decodeBase64ToBitmap(backgroundImageBase64) ?: return call.reject("Invalid image")
+          imageHelper.decodeBase64ToBitmap(backgroundImageBase64) ?: return call.reject("Invalid image")
         val contentUri = imageHelper.bitmapToUri(bitmap)
         shareIntent.setDataAndType(contentUri, imageHelper.getMediaType(contentUri))
         shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri)
@@ -198,6 +199,7 @@ class SharingPlugin : Plugin() {
     return when (target) {
       "instagramStories" -> MetaHandler(platform = "instagram", placement = "stories")
       "facebookStories" -> MetaHandler(platform = "facebook", placement = "stories")
+      "instagramFeed" -> InstagramFeedHandler()
       "native" -> NativeHandler()
       else -> null
     }
@@ -211,18 +213,18 @@ class ImageHelper(private val context: Context) {
     bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream)
     fileOutputStream.close()
     val contentUri =
-        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+      FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     return contentUri
   }
 
   fun decodeBase64ToBitmap(base64Str: String): Bitmap? {
     return try {
       val base64Image =
-          if (base64Str.contains("data:image")) {
-            base64Str.substringAfter(",") // Remove the data:image part
-          } else {
-            base64Str
-          }
+        if (base64Str.contains("data:image")) {
+          base64Str.substringAfter(",") // Remove the data:image part
+        } else {
+          base64Str
+        }
 
       val decodedBytes = Base64.decode(base64Image, Base64.DEFAULT)
       BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
@@ -247,8 +249,8 @@ interface ShareTargetHandler {
 }
 
 class MetaHandler(
-    private val platform: String, // "facebook" or "instagram"
-    private val placement: String, // "stories" or "feed"
+  private val platform: String, // "facebook" or "instagram"
+  private val placement: String, // "stories" or "feed"
 ) : ShareTargetHandler {
 
   override var call: PluginCall? = null
@@ -275,20 +277,20 @@ class MetaHandler(
     val imageHelper = ImageHelper(context!!)
 
     val facebookAppId =
-        call?.getString("facebookAppId")
-            ?: return completion(false, ("Must provide a facebookAppId"))
+      call?.getString("facebookAppId")
+        ?: return completion(false, ("Must provide a facebookAppId"))
 
     val backgroundImageUri =
-        call
-            ?.getString("backgroundImageBase64")
-            ?.let { imageHelper.decodeBase64ToBitmap(it) }
-            ?.let { imageHelper.bitmapToUri(it) }
+      call
+        ?.getString("backgroundImageBase64")
+        ?.let { imageHelper.decodeBase64ToBitmap(it) }
+        ?.let { imageHelper.bitmapToUri(it) }
 
     val stickerImageUri =
-        call
-            ?.getString("stickerImageBase64")
-            ?.let { imageHelper.decodeBase64ToBitmap(it) }
-            ?.let { imageHelper.bitmapToUri(it) }
+      call
+        ?.getString("stickerImageBase64")
+        ?.let { imageHelper.decodeBase64ToBitmap(it) }
+        ?.let { imageHelper.bitmapToUri(it) }
     val backgroundTopColor = call?.getString("backgroundTopColor")
     val backgroundBottomColor = call?.getString("backgroundBottomColor")
 
@@ -306,14 +308,14 @@ class MetaHandler(
       // Attach your image to the intent from a URI
       intent.setDataAndType(backgroundImageUri, imageHelper.getMediaType(backgroundImageUri))
       activity!!.grantUriPermission(
-          getPackageName(), backgroundImageUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        getPackageName(), backgroundImageUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
     if (stickerImageUri !== null) {
       intent.setType(imageHelper.getMediaType(stickerImageUri))
       intent.putExtra("interactive_asset_uri", stickerImageUri)
       activity!!.grantUriPermission(
-          getPackageName(), stickerImageUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        getPackageName(), stickerImageUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     if (!backgroundTopColor.isNullOrEmpty()) {
       intent.putExtra("top_background_color", backgroundTopColor)
@@ -334,9 +336,9 @@ class MetaHandler(
   private fun getActionName(): String {
     val action = if (placement == "stories") "ADD_TO_STORY" else "ADD_TO_FEED"
     return if (platform == "facebook") {
-        "com.facebook.stories.$action"
+      "com.facebook.stories.$action"
     } else {
-        "com.instagram.share.$action"
+      "com.instagram.share.$action"
     }
   }
 
@@ -345,6 +347,108 @@ class MetaHandler(
       "com.facebook.katana"
     } else {
       "com.instagram.android"
+    }
+  }
+}
+
+class InstagramFeedHandler : ShareTargetHandler {
+  override var call: PluginCall? = null
+  override var context: Context? = null
+  override var activity: Activity? = null
+
+  override fun checkAvailability(completion: (Boolean, String?) -> Unit?): Unit? {
+    // Check if Instagram is installed
+    val instagramIntent = Intent(Intent.ACTION_SEND)
+    instagramIntent.setPackage("com.instagram.android")
+    instagramIntent.type = "image/*"
+
+    val packageManager = context?.packageManager
+    val canResolveIntent = packageManager?.resolveActivity(instagramIntent, 0) != null
+
+    completion(canResolveIntent, if (!canResolveIntent) "Instagram app not installed" else null)
+    return null
+  }
+
+  override fun share(completion: (Boolean, String?) -> Unit?): Unit? {
+    // Get the background image base64 from the call
+    val backgroundImageBase64 = call?.getString("backgroundImageBase64")
+    if (backgroundImageBase64.isNullOrEmpty()) {
+      completion(false, "Must provide backgroundImageBase64")
+      return null
+    }
+
+    try {
+      // Convert base64 to bitmap
+      val bitmap = base64ToBitmap(backgroundImageBase64)
+      if (bitmap == null) {
+        completion(false, "Invalid image data")
+        return null
+      }
+
+      // Create a file in the cache directory to share
+      val cachePath = File(context?.cacheDir, "images")
+      cachePath.mkdirs()
+
+      // Create a unique filename for this share
+      val fileName = "instagram_share_${System.currentTimeMillis()}.png"
+      val file = File(cachePath, fileName)
+
+      // Save the bitmap to the file
+      val stream = FileOutputStream(file)
+      bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+      stream.close()
+
+      // Create the sharing URI using FileProvider
+      val contentUri = FileProvider.getUriForFile(
+        context!!,
+        "${context!!.packageName}.fileprovider",
+        file
+      )
+
+      // Create an intent to share to Instagram
+      val shareIntent = Intent(Intent.ACTION_SEND)
+      shareIntent.type = "image/*"
+      shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri)
+
+      // Grant read permission to the receiving app
+      shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+      // Try to target Instagram specifically
+      shareIntent.setPackage("com.instagram.android")
+
+      // Check if Instagram can handle this intent
+      val packageManager = context?.packageManager
+      if (packageManager?.resolveActivity(shareIntent, 0) != null) {
+        // Launch Instagram
+        activity?.startActivity(shareIntent)
+        completion(true, null)
+      } else {
+        // Fall back to a chooser if Instagram isn't available
+        val chooserIntent = Intent.createChooser(shareIntent, "Share to Instagram")
+        activity?.startActivity(chooserIntent)
+        completion(true, null)
+      }
+    } catch (e: Exception) {
+      Log.e("InstagramFeedHandler", "Error sharing to Instagram: ${e.localizedMessage}")
+      completion(false, "Error sharing to Instagram: ${e.localizedMessage}")
+    }
+
+    return null
+  }
+
+  private fun base64ToBitmap(base64String: String): Bitmap? {
+    return try {
+      val cleanedBase64 = if (base64String.contains("data:image")) {
+        base64String.substringAfter(",")
+      } else {
+        base64String
+      }
+
+      val decodedBytes = Base64.decode(cleanedBase64, Base64.DEFAULT)
+      BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+    } catch (e: Exception) {
+      Log.e("InstagramFeedHandler", "Error decoding base64: ${e.localizedMessage}")
+      null
     }
   }
 }
