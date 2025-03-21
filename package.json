@@ -1,6 +1,6 @@
 {
   "name": "@palauaandsons/capacitor-sharing",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Sharing plugin for Capacitor",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
